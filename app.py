@@ -5,7 +5,7 @@ from routes import api_routes
 
 CORS(app)
 
-# ✅ Register API Routes
+# Register API Routes
 app.register_blueprint(api_routes)
 
 if __name__ == "__main__":

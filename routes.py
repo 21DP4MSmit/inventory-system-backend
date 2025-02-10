@@ -4,26 +4,25 @@ from config import db
 
 api_routes = Blueprint("api_routes", __name__)
 
-from flask_jwt_extended import get_jwt, get_jwt_identity
 
 def role_required(roles):
     def decorator(func):
         @jwt_required()
         def wrapper(*args, **kwargs):
             claims = get_jwt()
-            
-            if 'role' not in claims:
+
+            if "role" not in claims:
                 return jsonify({"error": "Invalid token"}), 422
 
-            if claims['role'] not in roles:
+            if claims["role"] not in roles:
                 return jsonify({"error": "Insufficient permissions"}), 403
-            
+
             return func(*args, **kwargs)
 
         wrapper.__name__ = f"{func.__name__}_protected"
         return wrapper
-    return decorator
 
+    return decorator
 
 
 # Get all items (public route)
@@ -33,7 +32,7 @@ def get_items():
         cursor = db.connection.cursor()
         cursor.execute("SELECT * FROM items")
         items = cursor.fetchall()
-        
+
         results = [
             {
                 "item_id": item[0],
@@ -59,7 +58,12 @@ def add_item():
         cursor = db.connection.cursor()
         cursor.execute(
             "INSERT INTO items (name, category_id, quantity, image_path) VALUES (%s, %s, %s, %s)",
-            (data["name"], data["category_id"], data["quantity"], data.get("image_path")),
+            (
+                data["name"],
+                data["category_id"],
+                data["quantity"],
+                data.get("image_path"),
+            ),
         )
         db.connection.commit()
         return jsonify({"message": "Item added successfully"}), 201
@@ -76,7 +80,13 @@ def update_item(item_id):
         cursor = db.connection.cursor()
         cursor.execute(
             "UPDATE items SET name = %s, category_id = %s, quantity = %s, image_path = %s WHERE item_id = %s",
-            (data["name"], data["category_id"], data["quantity"], data.get("image_path"), item_id),
+            (
+                data["name"],
+                data["category_id"],
+                data["quantity"],
+                data.get("image_path"),
+                item_id,
+            ),
         )
         db.connection.commit()
         return jsonify({"message": "Item updated successfully"}), 200
@@ -100,7 +110,12 @@ def delete_item(item_id):
         cursor.execute("SELECT * FROM transactions WHERE item_id = %s", (item_id,))
         transaction = cursor.fetchone()
         if transaction:
-            return jsonify({"error": "Cannot delete item, it is referenced in transactions"}), 400
+            return (
+                jsonify(
+                    {"error": "Cannot delete item, it is referenced in transactions"}
+                ),
+                400,
+            )
 
         # Delete the item
         cursor.execute("DELETE FROM items WHERE item_id = %s", (item_id,))
@@ -119,7 +134,9 @@ def get_categories():
         cursor.execute("SELECT * FROM categories")
         categories = cursor.fetchall()
 
-        results = [{"category_id": cat[0], "category_name": cat[1]} for cat in categories]
+        results = [
+            {"category_id": cat[0], "category_name": cat[1]} for cat in categories
+        ]
         return jsonify(results), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -135,11 +152,19 @@ def add_category():
             return jsonify({"error": "Missing category_name"}), 400
 
         cursor = db.connection.cursor()
-        cursor.execute("INSERT INTO categories (category_name) VALUES (%s)", (data["category_name"],))
+        cursor.execute(
+            "INSERT INTO categories (category_name) VALUES (%s)",
+            (data["category_name"],),
+        )
         category_id = cursor.lastrowid
         db.connection.commit()
 
-        return jsonify({"category_id": category_id, "category_name": data["category_name"]}), 201
+        return (
+            jsonify(
+                {"category_id": category_id, "category_name": data["category_name"]}
+            ),
+            201,
+        )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -154,8 +179,10 @@ def update_category(category_id):
             return jsonify({"error": "Missing category_name"}), 400
 
         cursor = db.connection.cursor()
-        cursor.execute("UPDATE categories SET category_name = %s WHERE category_id = %s", 
-                       (data["category_name"], category_id))
+        cursor.execute(
+            "UPDATE categories SET category_name = %s WHERE category_id = %s",
+            (data["category_name"], category_id),
+        )
         db.connection.commit()
         return jsonify({"message": "Category updated successfully"}), 200
     except Exception as e:

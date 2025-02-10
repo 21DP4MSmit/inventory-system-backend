@@ -11,7 +11,9 @@ app.config["JWT_COOKIE_SECURE"] = False  # Change to True in production
 app.config["JWT_COOKIE_CSRF_PROTECT"] = False
 
 
-app.config["JWT_SECRET_KEY"] = "24dbdf01c1042bf4d7e55a223ef8fd479a6964308c1fd491d092172fe062c8b2"
+app.config["JWT_SECRET_KEY"] = (
+    "24dbdf01c1042bf4d7e55a223ef8fd479a6964308c1fd491d092172fe062c8b2"
+)
 
 jwt = JWTManager(app)
 

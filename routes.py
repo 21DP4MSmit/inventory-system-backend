@@ -1,10 +1,32 @@
 from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from config import db
 
 api_routes = Blueprint("api_routes", __name__)
 
+from flask_jwt_extended import get_jwt, get_jwt_identity
 
-# Get all items
+def role_required(roles):
+    def decorator(func):
+        @jwt_required()
+        def wrapper(*args, **kwargs):
+            claims = get_jwt()
+            
+            if 'role' not in claims:
+                return jsonify({"error": "Invalid token"}), 422
+
+            if claims['role'] not in roles:
+                return jsonify({"error": "Insufficient permissions"}), 403
+            
+            return func(*args, **kwargs)
+
+        wrapper.__name__ = f"{func.__name__}_protected"
+        return wrapper
+    return decorator
+
+
+
+# Get all items (public route)
 @api_routes.route("/api/items", methods=["GET"])
 def get_items():
     try:
@@ -28,8 +50,9 @@ def get_items():
         return jsonify({"error": str(e)}), 500
 
 
-# Add a new item
+# Add a new item (admin and staff)
 @api_routes.route("/api/items", methods=["POST"])
+@role_required(["admin", "staff"])
 def add_item():
     try:
         data = request.json
@@ -44,8 +67,9 @@ def add_item():
         return jsonify({"error": str(e)}), 500
 
 
-# Update an item
+# Update an item (admin and staff)
 @api_routes.route("/api/items/<int:item_id>", methods=["PUT"])
+@role_required(["admin", "staff"])
 def update_item(item_id):
     try:
         data = request.json
@@ -60,8 +84,9 @@ def update_item(item_id):
         return jsonify({"error": str(e)}), 500
 
 
-# Delete an item
+# Delete an item (admin and staff)
 @api_routes.route("/api/items/<int:item_id>", methods=["DELETE"])
+@role_required(["admin", "staff"])
 def delete_item(item_id):
     try:
         cursor = db.connection.cursor()
@@ -85,29 +110,24 @@ def delete_item(item_id):
         return jsonify({"error": str(e)}), 500
 
 
-# Get all categories
+# Get all categories (staff and admin)
 @api_routes.route("/api/categories", methods=["GET"])
+@jwt_required()
 def get_categories():
     try:
         cursor = db.connection.cursor()
         cursor.execute("SELECT * FROM categories")
         categories = cursor.fetchall()
 
-        results = [
-            {
-                "category_id": category[0],
-                "category_name": category[1],
-            }
-            for category in categories
-        ]
-
+        results = [{"category_id": cat[0], "category_name": cat[1]} for cat in categories]
         return jsonify(results), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-# Add categories
+# Add categories (admin)
 @api_routes.route("/api/categories", methods=["POST"])
+@role_required(["admin"])
 def add_category():
     try:
         data = request.json
@@ -124,8 +144,9 @@ def add_category():
         return jsonify({"error": str(e)}), 500
 
 
-# Update categories
+# Update categories (admin)
 @api_routes.route("/api/categories/<int:category_id>", methods=["PUT"])
+@role_required(["admin"])
 def update_category(category_id):
     try:
         data = request.json
@@ -141,8 +162,9 @@ def update_category(category_id):
         return jsonify({"error": str(e)}), 500
 
 
-# Delete categories
+# Delete categories (admin)
 @api_routes.route("/api/categories/<int:category_id>", methods=["DELETE"])
+@role_required(["admin"])
 def delete_category(category_id):
     try:
         cursor = db.connection.cursor()
@@ -153,9 +175,9 @@ def delete_category(category_id):
         return jsonify({"error": str(e)}), 500
 
 
-
-# Get all transactions
+# Get all transactions (admin)
 @api_routes.route("/api/transactions", methods=["GET"])
+@role_required(["admin"])
 def get_transactions():
     try:
         cursor = db.connection.cursor()

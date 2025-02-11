@@ -1,6 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from config import db
+from werkzeug.security import check_password_hash, generate_password_hash
+import re
 
 api_routes = Blueprint("api_routes", __name__)
 
@@ -23,6 +25,21 @@ def role_required(roles):
         return wrapper
 
     return decorator
+
+
+def validate_password(password):
+    """Check if the password meets the required criteria."""
+    if len(password) < 8:
+        return "Password must be at least 8 characters long."
+    if not re.search(r"[A-Z]", password):
+        return "Password must contain at least one uppercase letter."
+    if not re.search(r"[a-z]", password):
+        return "Password must contain at least one lowercase letter."
+    if not re.search(r"[0-9]", password):
+        return "Password must contain at least one digit."
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        return "Password must contain at least one special character."
+    return None
 
 
 # Get all items (public route)
@@ -198,6 +215,98 @@ def delete_category(category_id):
         cursor.execute("DELETE FROM categories WHERE category_id = %s", (category_id,))
         db.connection.commit()
         return jsonify({"message": "Category deleted successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# Get all users (admin only)
+@api_routes.route("/api/users", methods=["GET"])
+@role_required(["admin"])
+def get_users():
+    try:
+        cursor = db.connection.cursor()
+        cursor.execute("SELECT user_id, username, role FROM users")
+        users = cursor.fetchall()
+
+        results = [
+            {"user_id": user[0], "username": user[1], "role": user[2]} for user in users
+        ]
+
+        return jsonify(results), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# Add a new user (admin only)
+@api_routes.route("/api/users", methods=["POST"])
+@role_required(["admin"])
+def add_user():
+    try:
+        data = request.json
+
+        # Validate fields
+        if not data.get("username"):
+            return jsonify({"errors": {"username": ["Username is required."]}}), 422
+        if not data.get("password"):
+            return jsonify({"errors": {"password": ["Password is required."]}}), 422
+        if not data.get("role"):
+            return jsonify({"errors": {"role": ["Role is required."]}}), 422
+
+        # Validate password
+        validation_error = validate_password(data["password"])
+        if validation_error:
+            return jsonify({"errors": {"password": [validation_error]}}), 422
+
+        # Insert into the database
+        hashed_password = generate_password_hash(data["password"])
+        cursor = db.connection.cursor()
+        cursor.execute(
+            "INSERT INTO users (username, password, role) VALUES (%s, %s, %s)",
+            (data["username"], hashed_password, data["role"]),
+        )
+        db.connection.commit()
+
+        return jsonify({"message": "User created successfully."}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# Update a user (admin and staff)
+@api_routes.route("/api/users/<int:user_id>", methods=["PUT"])
+@role_required(["admin"])
+def update_user(user_id):
+    try:
+        data = request.json
+        updates = []
+        params = []
+
+        if "username" in data:
+            updates.append("username = %s")
+            params.append(data["username"])
+
+        if "password" in data:
+            # Validate the new password
+            validation_error = validate_password(data["password"])
+            if validation_error:
+                return jsonify({"errors": {"password": validation_error}}), 422
+
+            updates.append("password = %s")
+            params.append(generate_password_hash(data["password"]))
+
+        # Handle role update
+        if "role" in data:
+            updates.append("role = %s")
+            params.append(data["role"])
+
+        if updates:
+            query = f"UPDATE users SET {', '.join(updates)} WHERE user_id = %s"
+            params.append(user_id)
+            cursor = db.connection.cursor()
+            cursor.execute(query, tuple(params))
+            db.connection.commit()
+
+        return jsonify({"message": "User updated successfully"}), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

@@ -40,9 +40,10 @@ def create_tables():
         transaction_id INT AUTO_INCREMENT PRIMARY KEY,
         item_id INT NOT NULL,
         user_id INT NOT NULL,
-        transaction_type ENUM('in', 'out') DEFAULT NULL,
-        quantity_change INT DEFAULT NULL,
+        transaction_type ENUM('in', 'out') NOT NULL,
+        quantity_change INT NOT NULL,
         transaction_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        notes TEXT,
         FOREIGN KEY (item_id) REFERENCES items(item_id),
         FOREIGN KEY (user_id) REFERENCES users(user_id)
     )"""

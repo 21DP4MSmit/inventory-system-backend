@@ -93,8 +93,15 @@ def add_item():
 @role_required(["admin", "staff"])
 def update_item(item_id):
     try:
-        data = request.json
+        data = request.get_json()
+
         cursor = db.connection.cursor()
+        cursor.execute("SELECT * FROM items WHERE item_id = %s", (item_id,))
+        current_item = cursor.fetchone()
+
+        if not current_item:
+            return jsonify({"error": "Item not found"}), 404
+
         cursor.execute(
             "UPDATE items SET name = %s, category_id = %s, quantity = %s, image_path = %s WHERE item_id = %s",
             (
@@ -311,27 +318,187 @@ def update_user(user_id):
         return jsonify({"error": str(e)}), 500
 
 
-# Get all transactions (admin)
+# Get all transactions
 @api_routes.route("/api/transactions", methods=["GET"])
-@role_required(["admin"])
+@role_required(["admin", "staff"])
 def get_transactions():
     try:
         cursor = db.connection.cursor()
-        cursor.execute("SELECT * FROM transactions")
+        cursor.execute(
+            """
+            SELECT t.transaction_id, t.item_id, t.user_id, t.transaction_type, 
+                   t.quantity_change, t.transaction_date, t.notes, u.username
+            FROM transactions t
+            JOIN users u ON t.user_id = u.user_id
+            ORDER BY t.transaction_date DESC
+        """
+        )
         transactions = cursor.fetchall()
 
         results = [
             {
-                "transaction_id": transaction[0],
-                "item_id": transaction[1],
-                "user_id": transaction[2],
-                "transaction_type": transaction[3],
-                "quantity_change": transaction[4],
-                "transaction_date": str(transaction[5]),
+                "transaction_id": t[0],
+                "item_id": t[1],
+                "user_id": t[2],
+                "transaction_type": t[3],
+                "quantity_change": t[4],
+                "transaction_date": str(t[5]),
+                "notes": t[6],
+                "username": t[7],
             }
-            for transaction in transactions
+            for t in transactions
         ]
 
         return jsonify(results), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# Add a new transaction
+@api_routes.route("/api/transactions", methods=["POST"])
+@role_required(["admin", "staff"])
+def add_transaction():
+    try:
+        data = request.json
+        user_id = get_jwt_identity()
+
+        if not data or not all(
+            k in data for k in ["item_id", "transaction_type", "quantity_change"]
+        ):
+            return jsonify({"error": "Missing required fields"}), 400
+
+        if data["transaction_type"] not in ["in", "out"]:
+            return (
+                jsonify({"error": "Invalid transaction type. Must be 'in' or 'out'"}),
+                400,
+            )
+
+        try:
+            quantity = int(data["quantity_change"])
+            if quantity <= 0:
+                return jsonify({"error": "Quantity must be positive"}), 400
+        except ValueError:
+            return jsonify({"error": "Quantity must be a number"}), 400
+
+        cursor = db.connection.cursor()
+        cursor.execute(
+            "SELECT quantity FROM items WHERE item_id = %s", (data["item_id"],)
+        )
+        item = cursor.fetchone()
+
+        if not item:
+            return jsonify({"error": "Item not found"}), 404
+
+        current_quantity = item[0]
+
+        if data["transaction_type"] == "out" and quantity > current_quantity:
+            return (
+                jsonify(
+                    {"error": f"Not enough stock. Current quantity: {current_quantity}"}
+                ),
+                400,
+            )
+
+        new_quantity = (
+            current_quantity + quantity
+            if data["transaction_type"] == "in"
+            else current_quantity - quantity
+        )
+
+        db.connection.begin()
+
+        try:
+            cursor.execute(
+                """
+                INSERT INTO transactions 
+                (item_id, user_id, transaction_type, quantity_change, notes) 
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    data["item_id"],
+                    user_id,
+                    data["transaction_type"],
+                    quantity,
+                    data.get("notes"),
+                ),
+            )
+
+            cursor.execute(
+                "UPDATE items SET quantity = %s WHERE item_id = %s",
+                (new_quantity, data["item_id"]),
+            )
+
+            db.connection.commit()
+
+            return jsonify({"message": "Transaction added successfully"}), 201
+        except Exception as e:
+            db.connection.rollback()
+            raise e
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# Get transaction by ID
+@api_routes.route("/api/transactions/<int:transaction_id>", methods=["GET"])
+@role_required(["admin", "staff"])
+def get_transaction(transaction_id):
+    try:
+        cursor = db.connection.cursor()
+        cursor.execute(
+            """
+            SELECT t.transaction_id, t.item_id, t.user_id, t.transaction_type, 
+                   t.quantity_change, t.transaction_date, t.notes, u.username,
+                   i.name as item_name
+            FROM transactions t
+            JOIN users u ON t.user_id = u.user_id
+            JOIN items i ON t.item_id = i.item_id
+            WHERE t.transaction_id = %s
+        """,
+            (transaction_id,),
+        )
+
+        transaction = cursor.fetchone()
+
+        if not transaction:
+            return jsonify({"error": "Transaction not found"}), 404
+
+        result = {
+            "transaction_id": transaction[0],
+            "item_id": transaction[1],
+            "user_id": transaction[2],
+            "transaction_type": transaction[3],
+            "quantity_change": transaction[4],
+            "transaction_date": str(transaction[5]),
+            "notes": transaction[6],
+            "username": transaction[7],
+            "item_name": transaction[8],
+        }
+
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# Get a single item by ID
+@api_routes.route("/api/items/<int:item_id>", methods=["GET"])
+def get_item(item_id):
+    try:
+        cursor = db.connection.cursor()
+        cursor.execute("SELECT * FROM items WHERE item_id = %s", (item_id,))
+        item = cursor.fetchone()
+
+        if not item:
+            return jsonify({"error": "Item not found"}), 404
+
+        result = {
+            "item_id": item[0],
+            "name": item[1],
+            "category_id": item[2],
+            "quantity": item[3],
+            "image_path": item[4],
+        }
+
+        return jsonify(result), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500

@@ -42,7 +42,7 @@ def validate_password(password):
     return None
 
 
-# Get all items (public route)
+# Public endpoint for items (read-only)
 @api_routes.route("/api/items", methods=["GET"])
 def get_items():
     try:
@@ -149,9 +149,8 @@ def delete_item(item_id):
         return jsonify({"error": str(e)}), 500
 
 
-# Get all categories (staff and admin)
+# Public endpoint for categories (read-only)
 @api_routes.route("/api/categories", methods=["GET"])
-@jwt_required()
 def get_categories():
     try:
         cursor = db.connection.cursor()

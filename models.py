@@ -49,4 +49,59 @@ def create_tables():
     )"""
     )
 
+    cursor.execute(
+        """
+    CREATE TABLE IF NOT EXISTS object_mappings (
+        mapping_id INT AUTO_INCREMENT PRIMARY KEY,
+        object_name VARCHAR(100) NOT NULL UNIQUE,
+        category_id INT NOT NULL,
+        FOREIGN KEY (category_id) REFERENCES categories(category_id)
+    )"""
+    )
+
     db.connection.commit()
+
+
+def get_object_mappings():
+    cursor = db.connection.cursor()
+    cursor.execute(
+        """
+        SELECT om.object_name, c.category_name, om.category_id 
+        FROM object_mappings om
+        JOIN categories c ON om.category_id = c.category_id
+    """
+    )
+
+    mappings = {}
+    for row in cursor.fetchall():
+        mappings[row[0]] = {"category_name": row[1], "category_id": row[2]}
+
+    return mappings
+
+
+def add_object_mapping(object_name, category_id):
+    try:
+        cursor = db.connection.cursor()
+
+        cursor.execute(
+            "SELECT mapping_id FROM object_mappings WHERE object_name = %s",
+            (object_name,),
+        )
+        existing = cursor.fetchone()
+
+        if existing:
+            cursor.execute(
+                "UPDATE object_mappings SET category_id = %s WHERE object_name = %s",
+                (category_id, object_name),
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO object_mappings (object_name, category_id) VALUES (%s, %s)",
+                (object_name, category_id),
+            )
+
+        db.connection.commit()
+        return True
+    except Exception as e:
+        print(f"Error adding object mapping: {str(e)}")
+        return False

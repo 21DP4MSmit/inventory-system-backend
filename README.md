@@ -10,7 +10,7 @@ Flask backend for the Inventory Management System.
 
 ## Setup
 1. Clone the repository:
-    git clone https://github.com/yourusername/inventory-system-backend.git
+    git clone https://github.com/21DP4MSmit/inventory-system-backend.git
 2. Install dependencies:
     pip install -r requirements.txt
 3. Set up the database (MySQL).

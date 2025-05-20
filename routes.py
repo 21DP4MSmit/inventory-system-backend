@@ -725,7 +725,6 @@ def generate_report():
         else:
             end_date = datetime.datetime.now()
 
-        # Add one day to include end_date in results
         end_date = end_date + datetime.timedelta(days=1)
 
         if report_type == "inventory":

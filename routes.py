@@ -539,8 +539,50 @@ def update_user(user_id):
         return jsonify({"error": str(e)}), 500
 
 
-# ----- Transaction Routes -----
+@api_routes.route("/api/users/<int:user_id>/password", methods=["PUT"])
+@jwt_required()
+def update_user_password(user_id):
+    try:
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        current_user_role = claims.get("role", "")
+        
+        if int(current_user_id) != user_id and current_user_role != "admin":
+            return jsonify({"error": "You can only update your own password"}), 403
+        
+        data = request.json
+        if not data or "currentPassword" not in data or "newPassword" not in data:
+            return jsonify({"error": "Missing required fields"}), 400
 
+        cursor = db.connection.cursor()
+        cursor.execute("SELECT password FROM users WHERE user_id = %s", (user_id,))
+        user = cursor.fetchone()
+        
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+            
+        current_password_hash = user[0]
+        
+        if not check_password_hash(current_password_hash, data["currentPassword"]):
+            return jsonify({"error": "Current password is incorrect"}), 401
+
+        validation_error = validate_password(data["newPassword"])
+        if validation_error:
+            return jsonify({"error": validation_error}), 422
+
+        new_password_hash = generate_password_hash(data["newPassword"])
+        cursor.execute(
+            "UPDATE users SET password = %s WHERE user_id = %s",
+            (new_password_hash, user_id)
+        )
+        db.connection.commit()
+        
+        return jsonify({"message": "Password updated successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ----- Transaction Routes -----
 
 # Get all transactions
 @api_routes.route("/api/transactions", methods=["GET"])

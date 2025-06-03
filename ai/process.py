@@ -52,6 +52,8 @@ def process_image():
 
     try:
         detector = initialize_detector()
+        if detector is None:
+            return jsonify({"error": "AI model not available"}), 500
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 500
 
@@ -69,6 +71,8 @@ def process_image():
         file.save(filepath)
 
         try:
+            os.makedirs(RESULT_FOLDER, exist_ok=True)
+
             confidence_threshold = float(
                 request.headers.get("X-Confidence-Threshold", 0.5)
             )
@@ -78,6 +82,16 @@ def process_image():
             result_path = os.path.join(RESULT_FOLDER, result_filename)
             annotated_path = detector.annotate_image(filepath, result_path, detections)
 
+            print(f"Created annotated image at: {result_path}")
+            print(f"File exists after creation: {os.path.exists(result_path)}")
+
+            if annotated_path and os.path.exists(annotated_path):
+                image_url = f"/api/images/{result_filename}"
+                print(f"Returning image URL: {image_url}")
+            else:
+                print("Warning: Annotated image was not created successfully")
+                image_url = None
+
             mapped_results = map_to_inventory_categories(detections)
 
             return (
@@ -85,7 +99,7 @@ def process_image():
                     {
                         "success": True,
                         "detections": detections,
-                        "annotated_image": f"/api/images/{result_filename}",
+                        "annotated_image": image_url,
                         "category_suggestions": mapped_results["suggestions"],
                         "unmapped_objects": mapped_results["unmapped_objects"],
                     }

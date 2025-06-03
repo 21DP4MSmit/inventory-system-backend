@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, send_file, send_from_directory
+from flask import Blueprint, request, jsonify, send_file, send_from_directory, current_app, abort
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from config import db
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -173,7 +173,29 @@ def detect_objects():
 # Serve result images
 @api_routes.route("/api/images/<filename>", methods=["GET"])
 def serve_image(filename):
-    return send_from_directory("results", filename)
+
+    results_dir = os.path.join(os.getcwd(), "results")
+
+    os.makedirs(results_dir, exist_ok=True)
+    
+    file_path = os.path.join(results_dir, filename)
+
+    print(f"Looking for image: {filename}")
+    print(f"Full path: {file_path}")
+    print(f"File exists: {os.path.exists(file_path)}")
+    
+    if os.path.exists(results_dir):
+        print(f"Files in results directory: {os.listdir(results_dir)}")
+
+    if not os.path.exists(file_path):
+        print(f"Image not found: {filename}")
+        abort(404)
+    
+    try:
+        return send_from_directory(results_dir, filename)
+    except Exception as e:
+        print(f"Error serving image: {e}")
+        abort(404)
 
 
 # ----- Item Routes -----

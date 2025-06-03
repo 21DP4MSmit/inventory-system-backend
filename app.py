@@ -7,7 +7,12 @@ from auth import auth_routes
 from models import create_tables
 import os
 
-CORS(app, origins="*")
+CORS(app, origins=[
+    "http://localhost:5173",
+    "https://onlyschool.id.lv",
+    "https://www.onlyschool.id.lv",
+    "https://inventory-frontend-*.europe-west3.run.app"
+])
 
 app.config["JWT_TOKEN_LOCATION"] = ["headers"]
 app.config["JWT_COOKIE_SECURE"] = False

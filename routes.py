@@ -646,7 +646,8 @@ def add_transaction():
         except ValueError:
             return jsonify({"error": "Quantity must be a number"}), 400
 
-        cursor = db.connection.cursor()
+        cursor = db.connection.cursor() if hasattr(db, 'connection') else db.cursor()
+
         cursor.execute(
             "SELECT quantity FROM items WHERE item_id = %s", (data["item_id"],)
         )
@@ -671,8 +672,6 @@ def add_transaction():
             else current_quantity - quantity
         )
 
-        db.connection.begin()
-
         try:
             cursor.execute(
                 """
@@ -694,11 +693,14 @@ def add_transaction():
                 (new_quantity, data["item_id"]),
             )
 
-            db.connection.commit()
+            if hasattr(db, 'connection') and hasattr(db.connection, 'commit'):
+                db.connection.commit()
 
             return jsonify({"message": "Transaction added successfully"}), 201
+            
         except Exception as e:
-            db.connection.rollback()
+            if hasattr(db, 'connection') and hasattr(db.connection, 'rollback'):
+                db.connection.rollback()
             raise e
 
     except Exception as e:

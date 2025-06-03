@@ -7,6 +7,14 @@ RUN apt-get update && apt-get install -y \
     g++ \
     pkg-config \
     default-libmysqlclient-dev \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    libgthread-2.0-0 \
+    libgtk-3-0 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -17,13 +25,6 @@ COPY . .
 
 RUN mkdir -p uploads results ai/models
 
-RUN python -c "import flask; print('Flask OK')"
-RUN python -c "import flask_cors; print('CORS OK')"
-RUN python -c "import flask_jwt_extended; print('JWT OK')"
-RUN python -c "import flask_mysqldb; print('MySQL OK')"
-
-RUN python -c "from config import app, db; print('Config OK')"
-
 EXPOSE 8080
 
-CMD python -c "import os; os.environ.setdefault('PORT', '8080'); exec(open('app.py').read())"
+CMD exec gunicorn --bind :8080 --workers 1 --threads 8 --timeout 300 app:app

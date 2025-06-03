@@ -13,8 +13,17 @@ RUN apt-get update && apt-get install -y \
     libxext6 \
     libxrender-dev \
     libgomp1 \
-    libgthread-2.0-0 \
     libgtk-3-0 \
+    libgstreamer1.0-0 \
+    libgstreamer-plugins-base1.0-0 \
+    libfontconfig1 \
+    libcairo2 \
+    libgdk-pixbuf2.0-0 \
+    libpango-1.0-0 \
+    libatk1.0-0 \
+    libcairo-gobject2 \
+    libgtk-3-0 \
+    libgdk-pixbuf2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

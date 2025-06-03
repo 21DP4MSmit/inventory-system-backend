@@ -14,25 +14,19 @@ RUN apt-get update && apt-get install -y \
     libxrender-dev \
     libgomp1 \
     libgtk-3-0 \
-    libgstreamer1.0-0 \
-    libgstreamer-plugins-base1.0-0 \
-    libfontconfig1 \
-    libcairo2 \
-    libgdk-pixbuf2.0-0 \
-    libpango-1.0-0 \
-    libatk1.0-0 \
-    libcairo-gobject2 \
-    libgtk-3-0 \
-    libgdk-pixbuf2.0-0 \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN mkdir -p uploads results ai/models
+RUN mkdir -p ai/models uploads results
+
+RUN wget -O ai/models/yolov4.weights https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v3_optimal/yolov4.weights
+RUN wget -O ai/models/yolov4.cfg https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov4.cfg
+RUN wget -O ai/models/coco.names https://raw.githubusercontent.com/AlexeyAB/darknet/master/data/coco.names
 
 EXPOSE 8080
 

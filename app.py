@@ -12,7 +12,8 @@ CORS(app,
          "http://localhost:5173",
          "https://inventory-frontend-1085714355169.europe-west1.run.app",
          "https://onlyschool.id.lv",
-         "https://api.onlyschool.id.lv"
+         "https://api.onlyschool.id.lv",
+         "https://www.onlyschool.id.lv"
      ],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
      allow_headers=['Content-Type', 'Authorization'],

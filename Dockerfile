@@ -11,16 +11,19 @@ RUN apt-get update && apt-get install -y \
 
 COPY requirements.txt .
 
-RUN pip install gunicorn==21.2.0
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
 RUN mkdir -p uploads results ai/models
 
-ENV PORT=8080
-ENV PYTHONPATH=/app
+RUN python -c "import flask; print('Flask OK')"
+RUN python -c "import flask_cors; print('CORS OK')"
+RUN python -c "import flask_jwt_extended; print('JWT OK')"
+RUN python -c "import flask_mysqldb; print('MySQL OK')"
+
+RUN python -c "from config import app, db; print('Config OK')"
 
 EXPOSE 8080
 
-CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 app:app
+CMD python -c "import os; os.environ.setdefault('PORT', '8080'); exec(open('app.py').read())"

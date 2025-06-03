@@ -9,9 +9,11 @@ import os
 
 CORS(app, origins=[
     "http://localhost:5173",
+    "https://inventory-frontend-*.europe-west3.run.app",
+    "https://inventory-system-frontend-*.europe-west3.run.app",
+    "https://inventory-system-frontend-1085714355169.europe-west3.run.app",
     "https://onlyschool.id.lv",
-    "https://www.onlyschool.id.lv",
-    "https://inventory-frontend-*.europe-west3.run.app"
+    "https://api.onlyschool.id.lv"
 ])
 
 app.config["JWT_TOKEN_LOCATION"] = ["headers"]
